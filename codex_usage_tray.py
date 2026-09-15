@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 APP_NAME = "Codex Usage Tray"
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.0.4"
 REFRESH_SECONDS = 180
 USAGE_URL = "https://chatgpt.com/codex/settings/usage"
 NOTIFICATION_TITLE = "Codex usage info"
@@ -40,7 +40,7 @@ class LimitWindow:
         now = datetime.now().astimezone()
         if dt.date() == now.date():
             return f"resets at {dt:%H:%M}"
-        return f"resets at {dt:%Y-%m-%d %H:%M}"
+        return f"resets {dt:%B} {dt.day} at {dt:%H:%M}"
 
     @property
     def menu_text(self) -> str:
