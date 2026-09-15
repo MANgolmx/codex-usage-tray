@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 APP_NAME = "Codex Usage Tray"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.3"
 REFRESH_SECONDS = 180
 USAGE_URL = "https://chatgpt.com/codex/settings/usage"
 NOTIFICATION_TITLE = "Codex usage info"
@@ -354,17 +354,25 @@ def parse_usage(raw: dict[str, Any]) -> UsageState:
 
 
 def make_icon(text: str, error: bool = False) -> Image.Image:
-    size = 64
+    # A 256 px source lets Windows produce a cleaner tray-sized icon on both
+    # standard and high-DPI displays.
+    size = 256
     image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
 
     fill = (165, 45, 45, 255) if error else (45, 45, 48, 255)
-    draw.ellipse((2, 2, size - 2, size - 2), fill=fill)
+    # Extend the circle slightly past the image bounds so the badge reads as a
+    # larger background behind the percentage after Windows scales it down.
+    background_bleed = 14
+    draw.ellipse(
+        (-background_bleed, -background_bleed, size + background_bleed, size + background_bleed),
+        fill=fill,
+    )
 
     try:
-        # The Windows notification area downsizes this 64 px image substantially.
-        # Large numerals preserve a legible 5-hour percentage at tray-icon size.
-        font_size = 42 if len(text) <= 2 else 32
+        # The numbers are intentionally oversized: the notification area reduces
+        # this image to a tiny physical icon.
+        font_size = 196 if len(text) <= 2 else 144
         font = ImageFont.truetype("arial.ttf", font_size)
     except OSError:
         font = ImageFont.load_default()
