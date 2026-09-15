@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 APP_NAME = "Codex Usage Tray"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 REFRESH_SECONDS = 180
 USAGE_URL = "https://chatgpt.com/codex/settings/usage"
 NOTIFICATION_TITLE = "Codex usage info"
@@ -508,16 +508,33 @@ class TrayApp:
                 self._set_state(state)
                 return
             except Exception as second_error:
+                # Leave every failed attempt with a clean client. The next automatic
+                # or manual refresh will then start a brand-new app-server process.
+                self.client.stop()
                 self._set_error(str(second_error or first_error))
 
+    def _refresh_safely(self) -> None:
+        """Keep the background updater alive even if a UI update fails."""
+        try:
+            self._fetch_once()
+        except Exception as exc:
+            message = f"Unexpected refresh error: {exc}"
+            self.last_error = message
+            self.state = None
+            self.client.stop()
+            try:
+                self._set_error(message)
+            except Exception:
+                # A tray backend error must not terminate the retry loop.
+                pass
+
     def _update_loop(self) -> None:
-        self._fetch_once()
         while not self.stop_event.is_set():
-            self.refresh_event.wait(REFRESH_SECONDS)
-            self.refresh_event.clear()
+            self._refresh_safely()
             if self.stop_event.is_set():
                 break
-            self._fetch_once()
+            self.refresh_event.wait(REFRESH_SECONDS)
+            self.refresh_event.clear()
 
     def _setup(self, icon: pystray.Icon) -> None:
         icon.visible = True

@@ -12,7 +12,7 @@ The app **does not read browser cookies or store your ChatGPT password**. It sta
 - additional-credit balance, when Codex returns it;
 - the five-hour remaining percentage directly on the tray icon.
 
-Data refreshes every three minutes. The menu includes a manual refresh and a link to the Usage page.
+Data refreshes every three minutes. If a fetch fails, the next automatic or manual refresh starts a new Codex app-server process; a single failure does not stop the updater. The menu includes a manual refresh and a link to the Usage page.
 All information and error notifications use the title `Codex usage info`.
 
 ## Requirements
