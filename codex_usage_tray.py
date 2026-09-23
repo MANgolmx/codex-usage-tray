@@ -18,8 +18,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 APP_NAME = "Codex Usage Tray"
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.0.5"
 REFRESH_SECONDS = 180
+ACTIVE_REFRESH_SECONDS = 60
 USAGE_URL = "https://chatgpt.com/codex/settings/usage"
 NOTIFICATION_TITLE = "Codex usage info"
 
@@ -392,6 +393,8 @@ class TrayApp:
         self.stop_event = threading.Event()
         self.refresh_event = threading.Event()
         self.has_notified_error = False
+        self.refresh_seconds = REFRESH_SECONDS
+        self.last_usage_percentages: tuple[tuple[int | None, float], ...] | None = None
 
         self.icon = pystray.Icon(
             "codex_usage_tray",
@@ -471,6 +474,7 @@ class TrayApp:
     def _set_error(self, message: str) -> None:
         self.last_error = message
         self.state = None
+        self.refresh_seconds = REFRESH_SECONDS
         self.icon.icon = make_icon("!", error=True)
         self.icon.title = "Codex Usage: error"
         self.icon.menu = self._build_menu()
@@ -481,6 +485,11 @@ class TrayApp:
             self.icon.notify(message, NOTIFICATION_TITLE)
 
     def _set_state(self, state: UsageState) -> None:
+        percentages = tuple((window.duration_minutes, window.used_percent) for window in state.windows)
+        usage_changed = (
+            self.last_usage_percentages is not None
+            and percentages != self.last_usage_percentages
+        )
         self.state = state
         self.last_error = None
         self.has_notified_error = False
@@ -491,6 +500,8 @@ class TrayApp:
         self.icon.title = state.tooltip
         self.icon.menu = self._build_menu()
         self.icon.update_menu()
+        self.last_usage_percentages = percentages
+        self.refresh_seconds = ACTIVE_REFRESH_SECONDS if usage_changed else REFRESH_SECONDS
 
     def _fetch_once(self) -> None:
         try:
@@ -529,6 +540,7 @@ class TrayApp:
             message = f"Unexpected refresh error: {exc}"
             self.last_error = message
             self.state = None
+            self.refresh_seconds = REFRESH_SECONDS
             self.client.stop()
             try:
                 self._set_error(message)
@@ -541,7 +553,7 @@ class TrayApp:
             self._refresh_safely()
             if self.stop_event.is_set():
                 break
-            self.refresh_event.wait(REFRESH_SECONDS)
+            self.refresh_event.wait(self.refresh_seconds)
             self.refresh_event.clear()
 
     def _setup(self, icon: pystray.Icon) -> None:
